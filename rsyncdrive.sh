@@ -27,15 +27,17 @@
 ### config ###
 ##############
 
-localpath=   # path without "/" on the end
+localpath= # path without "/" on the end
 
-remoteuser=   # username
-remotehost=   # domain or ip
-remotepath=   # path without "/" on the end
-sshport=22   # port
+ignoregitdirs=0 # boolean. 0 or 1
 
-makebackup=1   # boolean. 0 or 1
-backuppath=   # path without "/" on the end
+remoteuser= # username
+remotehost= # domain or ip
+remotepath= # path without "/" on the end
+sshport=22 # port
+
+makebackup=1 # boolean. 0 or 1
+backuppath= # path without "/" on the end
 
 
 
@@ -61,7 +63,7 @@ read option
 # ssh auth
 echo; echo ":: Authenticating..."
 ssh-add -l > /dev/null
-if [ $? != 0 ]
+if [[ $? != 0 ]]
 then
 	ssh-add ~/.ssh/id_rsa
 fi
@@ -79,41 +81,44 @@ find $local -name ".gitignore" | while read file
 do
 	cat $file | while read line
 	do
-		if [[ $line == "" ]]
+		if [[ "$line" == "" ]]
 		then
 			echo >> /dev/null
-		elif [[ $line == \#* ]]
+		elif [[ "$line" == \#* ]]
 		then
 			echo >> /dev/null
-		elif [[ $line == !* ]]
+		elif [[ "$line" == !* ]]
 		then
-			echo $(dirname $file)/${line:1} | tr -s / | sed "s/$prepdlocal//g" >> $local/include.txt
+			echo $(dirname $file)/"${line:1}" | tr -s / | sed "s/$prepdlocal//g" >> $local/include.txt
 		else
-			echo $(dirname $file)/$line | tr -s / | sed "s/$prepdlocal//g" >> $local/exclude.txt
+			echo $(dirname $file)/"$line" | tr -s / | sed "s/$prepdlocal//g" >> $local/exclude.txt
 		fi
 	done
 done
 
 # exclude all .git dirs
-find $local -name ".git" | while read dir
-do
-	echo $dir | tr -s / | sed "s/$prepdlocal//g" >> $local/exclude.txt
-done
+if [[ $ignoregitdirs != 0 ]]
+then
+	find $local -name ".git" | while read dir
+	do
+		echo $dir | tr -s / | sed "s/$prepdlocal//g" >> $local/exclude.txt
+	done
+fi
 
 # exclude service files and dirs
-echo "exclude.txt" >> $local/exclude.txt
-echo "include.txt" >> $local/exclude.txt
-echo ".git" >> $local/exclude.txt
+echo "/exclude.txt" >> $local/exclude.txt
+echo "/include.txt" >> $local/exclude.txt
+echo "/.git/" >> $local/exclude.txt
 
 # backup
-if [ $makebackup != 0 ]
+if [[ $makebackup != 0 ]]
 then
 	echo; echo ":: Making backup..."
 	rsync "${rsyncargs[@]}" $local/ $backuppath
 	cat $local/exclude.txt > $backuppath/.gitignore
 	cat $local/include.txt | while read line
 	do
-		echo !$line >> $backuppath/.gitignore
+		echo !"$line" >> $backuppath/.gitignore
 	done
 	git -C $backuppath init &> /dev/null
 	git -C $backuppath add -A &> /dev/null
@@ -138,5 +143,3 @@ case $option in
 		rsync "${rsyncargs[@]}" $remote/ $local
 		;;
 esac
-
-exit
